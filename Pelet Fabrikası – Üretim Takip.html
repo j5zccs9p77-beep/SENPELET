@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pelet Fabrikası – Üretim Takip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f1ec; --panel:#fff; --ink:#1d1f21; --muted:#6b6e72; --line:#e2dfd8;
+  --run:#2b8a3e; --run-bg:#e6f4ea; --stop:#c92a2a; --stop-bg:#fdecec; --idle:#868e96;
+  --accent:#1d1f21; --radius:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+header{background:#1d1f21;color:#f3f1ec;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.2px}
+header h1 span{color:#f59f00}
+header .sp{flex:1}
+#clock{font-family:"IBM Plex Mono",monospace;font-size:15px;opacity:.9}
+#conn{font-size:13px;opacity:.85}
+#conn.ok::before{content:"● ";color:#51cf66}
+#conn.wait::before{content:"● ";color:#fcc419}
+#conn.bad::before{content:"● ";color:#ff6b6b}
+.hbtn{background:transparent;border:1px solid #555;color:#f3f1ec;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+.hbtn:hover{border-color:#aaa}
+#banner{display:none;padding:10px 20px;background:#fff3bf;border-bottom:1px solid #f0d878;font-size:14px}
+#banner.show{display:block}
+nav{display:flex;gap:4px;padding:0 16px;background:#2a2c2f;overflow-x:auto}
+nav button{background:none;border:0;color:#c9c9c4;padding:12px 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-weight:500}
+nav button.on{color:#fff;border-bottom-color:var(--c,#f59f00)}
+nav button .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.dot.run{background:#51cf66}.dot.stop{background:#ff6b6b}.dot.idle{background:#868e96}
+#filters{padding:14px 20px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#filters .lbl{font-size:13px;color:var(--muted);margin-right:4px}
+#filters input[type=date]{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff;font-size:13px}
+main{padding:16px 20px 60px;max-width:1280px}
+h2{font-size:16px;margin:24px 0 10px;font-weight:600}
+h2 small{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3{margin:0;font-size:17px}
+.badge{font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;letter-spacing:.3px;white-space:nowrap}
+.badge.run{background:var(--run-bg);color:var(--run)}
+.badge.stop{background:var(--stop-bg);color:var(--stop)}
+.badge.idle{background:#f1f3f5;color:var(--idle)}
+.lab{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.big{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;line-height:1.1}
+.muted{color:var(--muted);font-size:13px}
+.reason{font-size:13px;background:var(--stop-bg);color:#8a1c1c;border-radius:6px;padding:5px 8px}
+.today{font-size:13px;border-top:1px dashed var(--line);padding-top:8px;margin-top:4px}
+.card-f{display:flex;gap:8px;margin-top:6px}
+.btn{border:0;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600;font-size:15px}
+.btn.start{background:var(--run);color:#fff;flex:1}
+.btn.stop{background:var(--stop);color:#fff;flex:1}
+.btn.ghost{background:#fff;border:1px solid var(--line);font-weight:500}
+.btn.dark{background:var(--ink);color:#fff}
+.btn.danger{background:var(--stop);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px}
+.stat .v{font-family:"IBM Plex Mono",monospace;font-size:20px;font-weight:600}
+.stat .k{font-size:12px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:4px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+nav .cnt{background:#f59f00;color:#1d1f21;border-radius:999px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:4px}
+.notes{display:flex;flex-direction:column;gap:10px}
+.note{background:#fff;border:1px solid var(--line);border-left:5px solid var(--lc);border-radius:var(--radius);padding:12px 14px}
+.note.done{opacity:.75;border-left-color:#2b8a3e}
+.note .nh{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.note .lv{background:var(--lb);color:var(--lc);font-weight:600;font-size:12px;padding:2px 8px;border-radius:5px}
+.note .nt{margin:8px 0 4px;line-height:1.45;white-space:normal}
+.note .res{background:var(--run-bg);color:#1e6b30;border-radius:6px;padding:6px 9px;font-size:13px;margin-top:6px}
+.note .nf{display:flex;gap:4px;flex-wrap:wrap;align-items:center;font-size:13px;margin-top:4px}
+.note .nf .sp{flex:1}
+tfoot td{border-top:2px solid var(--line);background:#fafaf8}
+th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num{font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+td.nowrap{white-space:nowrap}
+.tag{display:inline-block;font-size:12px;padding:2px 7px;border-radius:5px;background:#f1f3f5}
+.tag.run{background:var(--run-bg);color:var(--run);font-weight:600}
+.tag.end,.reason.end{background:#e7f5ff;color:#1864ab}
+.tag.r{background:var(--stop-bg);color:#8a1c1c}
+.icon{background:none;border:0;cursor:pointer;color:var(--muted);padding:2px 6px;font-size:13px;text-decoration:underline}
+.icon:hover{color:var(--ink)}
+.bars{display:flex;flex-direction:column;gap:8px;padding:12px 16px}
+.bar{display:grid;grid-template-columns:minmax(120px,220px) 1fr auto;gap:10px;align-items:center;font-size:13px}
+.bar .t{height:14px;background:#f1f3f5;border-radius:4px;overflow:hidden}
+.bar .f{height:100%;background:var(--c,#c92a2a);border-radius:4px}
+.bar .n{font-family:"IBM Plex Mono",monospace;white-space:nowrap;font-size:13px}
+.empty{padding:22px;text-align:center;color:var(--muted);font-size:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row .sp{flex:1}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:flex;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline}
+.feed li:last-child{border-bottom:0}
+.feed .when{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);white-space:nowrap}
+.modal{position:fixed;inset:0;background:rgba(20,20,20,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 12px;z-index:50;overflow-y:auto}
+.modal.hidden{display:none}
+.sheet{background:#fff;border-radius:12px;width:100%;max-width:460px;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.sheet .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.f{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.f label{font-size:13px;font-weight:600}
+.f input,.f select,.f textarea{border:1px solid #cfccc4;border-radius:8px;padding:9px 10px;background:#fff;width:100%}
+.f textarea{min-height:70px;resize:vertical}
+.f .hint{font-size:12px;color:var(--muted)}
+.err{color:var(--stop);font-size:13px;min-height:18px;margin-bottom:6px}
+.actions{display:flex;gap:8px;justify-content:flex-end}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.quick button{font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:#fafaf8;cursor:pointer}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
+#toast.show{opacity:1}
+@media (max-width:600px){
+  header{padding:12px 14px} main{padding:12px 12px 60px} #filters{padding:12px 12px 0}
+  .big{font-size:22px} .bar{grid-template-columns:110px 1fr auto}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pelet Fabrikası <span>·</span> Üretim Takip</h1>
+  <div class="sp"></div>
+  <span id="conn" class="wait">Bağlanıyor…</span>
+  <span id="clock"></span>
+  <button class="hbtn" data-act="settings">Duruş nedenleri</button>
+</header>
+<div id="banner"></div>
+<nav id="tabs"></nav>
+<div id="filters"></div>
+<main id="view"></main>
+<div id="modal" class="modal hidden"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+const SECTIONS = [
+  {id:'kurutma',   name:'Kurutma',    color:'#e8590c'},
+  {id:'ogutme',    name:'Öğütme',     color:'#1c7ed6'},
+  {id:'pres',      name:'Pelet Pres', color:'#9c36b5'},
+];
+const PAKET = {id:'paketleme', name:'Paketleme', color:'#0c8599'};
+const SHIFTS = [['gunduz','Gündüz'],['gece','Gece']];
+const isEnd = r => /^Üretim sonlandırma/i.test(r||'');
+const SEC = Object.fromEntries(SECTIONS.map(s=>[s.id,s]));
+const END_REASON = 'Üretim sonlandırma (parti bitti)';
+const DEFAULT_REASONS = [END_REASON,'Arıza – Mekanik','Arıza – Elektrik','Planlı bakım','Temizlik','Hammadde yok / bekleme','Elektrik kesintisi','Vardiya değişimi','Ürün / sipariş yok','Diğer'];
+const RANGES = [['bugun','Bugün'],['dun','Dün'],['7g','Son 7 gün'],['30g','Son 30 gün'],['ay','Bu ay'],['ozel','Tarih seç']];
+
+let paket = [];             // {id:'YYYY-MM-DD_shift', date, shift, palet, ton, note, operator}
+let notes = [];             // vardiya notları
+let runs = [];               // {id, section, start, end|null, reason, note, startNote, operator, stopOperator}
+let reasons = DEFAULT_REASONS.slice();
+let db = null, userCap = null, canWrite = true, dbReady = false;
+let tab = 'genel';
+let noteFilter = 'hepsi';
+let range = {kind:'7g', from:'', to:''};
+
+try { const h = location.hash.slice(1); if (validTab(h)) tab = h; } catch(e){}
+function validTab(t){ return t==='genel' || t==='rapor' || t==='paketleme' || t==='teslim' || !!SEC[t]; }
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const DAY = 864e5;
+function fmtDT(ms){ if(ms==null) return '—'; const d=new Date(ms); return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtT(ms){ const d=new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtDur(ms){ if(ms==null || ms<0) return '—'; const t=Math.floor(ms/60000); const h=Math.floor(t/60), m=t%60; return h ? `${h} sa ${pad(m)} dk` : `${m} dk`; }
+function hours(ms){ return (ms/36e5).toFixed(2).replace('.',','); }
+function toInput(ms){ const d=new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fromInput(v){ if(!v) return null; const t=new Date(v).getTime(); return isNaN(t)?null:t; }
+function dayStart(ms){ const x=new Date(ms); x.setHours(0,0,0,0); return x.getTime(); }
+function overlap(s,e,a,b){ return Math.max(0, Math.min(e,b) - Math.max(s,a)); }
+function getOp(){ try{ return localStorage.getItem('pf_operator')||''; }catch(e){ return ''; } }
+function saveOp(v){ try{ localStorage.setItem('pf_operator', v); }catch(e){} }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+function getRange(){
+  const now=Date.now(), t0=dayStart(now);
+  switch(range.kind){
+    case 'bugun': return [t0, now];
+    case 'dun':   return [t0-DAY, t0];
+    case '7g':    return [t0-6*DAY, now];
+    case '30g':   return [t0-29*DAY, now];
+    case 'ay':  { const d=new Date(); return [new Date(d.getFullYear(), d.getMonth(), 1).getTime(), now]; }
+    case 'ozel':{ const a = range.from ? new Date(range.from+'T00:00').getTime() : t0;
+                  const b = range.to ? new Date(range.to+'T00:00').getTime()+DAY : now;
+                  return [a, Math.max(a, Math.min(b, now))]; }
+  }
+  return [t0, now];
+}
+function rangeLabel(){ const [a,b]=getRange(); return `${fmtDT(a).slice(0,10)} – ${fmtDT(b)}`; }
+
+function secRuns(sec){ return runs.filter(r=>r.section===sec).sort((x,y)=>x.start-y.start); }
+function openRun(sec){ return secRuns(sec).filter(r=>r.end==null).pop() || null; }
+function lastRun(sec){ const l=secRuns(sec); return l[l.length-1] || null; }
+
+/* Stats for one section in [a,b]: run time, stop time (until next start), stops & reasons */
+function stats(sec, a, b){
+  const now = Date.now(), list = secRuns(sec);
+  let run=0, down=0, stops=0; const byReason={};
+  list.forEach((r,i)=>{
+    run += overlap(r.start, r.end ?? now, a, b);
+    if (r.end != null){
+      const next = list[i+1];
+      const gapEnd = next ? next.start : now;
+      const d = overlap(r.end, gapEnd, a, b);
+      const inRange = r.end >= a && r.end <= b;
+      down += d;
+      if (inRange) stops++;
+      if (d>0 || inRange){
+        const k = r.reason || 'Belirtilmemiş';
+        byReason[k] = byReason[k] || {dur:0,count:0};
+        byReason[k].dur += d; if(inRange) byReason[k].count++;
+      }
+    }
+  });
+  return {run, down, stops, byReason, avail: (run+down) ? run/(run+down) : null};
+}
+function gapAfter(r){
+  if (r.end==null) return null;
+  const list = secRuns(r.section); const i = list.findIndex(x=>x.id===r.id);
+  const next = list[i+1];
+  return { dur: (next ? next.start : Date.now()) - r.end, ongoing: !next };
+}
+
+/* ---------- rendering ---------- */
+function renderTabs(){
+  const items = [['genel','Genel Bakış',null], ...SECTIONS.map(s=>[s.id,s.name,s]), ['paketleme','Paketleme',PAKET], ['teslim','Vardiya Teslim',null], ['rapor','Rapor',null]];
+  $('#tabs').innerHTML = items.map(([id,name,s])=>{
+    let dot='';
+    if (s && s!==PAKET){ const o=openRun(s.id), l=lastRun(s.id); dot=`<span class="dot ${o?'run':(l?'stop':'idle')}"></span>`; }
+    const cnt = id==='teslim' ? openWarnings().length : 0;
+    return `<button class="${tab===id?'on':''}" style="${s?'--c:'+s.color:''}" data-act="tab" data-tab="${id}">${dot}${name}${cnt?` <span class="cnt">${cnt}</span>`:''}</button>`;
+  }).join('');
+}
+function renderFilters(){
+  if (tab==='genel'){ $('#filters').innerHTML=''; return; }
+  const nf = tab==='teslim' ? ` <span class="lbl" style="margin-left:10px">Durum:</span>` + [['hepsi','Tümü'],['acik','Açık'],['cozuldu','Çözülen']].map(([k,l])=>`<button class="chip ${noteFilter===k?'on':''}" data-act="nf" data-k="${k}">${l}</button>`).join('') : '';
+  $('#filters').innerHTML = `<span class="lbl">Dönem:</span>` +
+    RANGES.map(([k,l])=>`<button class="chip ${range.kind===k?'on':''}" data-act="range" data-k="${k}">${l}</button>`).join('') +
+    (range.kind==='ozel' ? ` <input type="date" id="rf" value="${range.from}"> – <input type="date" id="rt" value="${range.to}">` : '') + nf;
+  const rf=$('#rf'), rt=$('#rt');
+  if (rf) rf.onchange = ()=>{ range.from=rf.value; renderView(); };
+  if (rt) rt.onchange = ()=>{ range.to=rt.value; renderView(); };
+}
+
+function cardHTML(s){
+  const now=Date.now(), o=openRun(s.id), l=lastRun(s.id);
+  const st=stats(s.id, dayStart(now), now);
+  let status, body;
+  if (o){
+    status='<span class="badge run">● ÇALIŞIYOR</span>';
+    body=`<div class="lab">Kesintisiz çalışma</div><div class="big">${fmtDur(now-o.start)}</div>
+          <div class="muted">Başladı: ${fmtDT(o.start)}${o.operator?' · '+esc(o.operator):''}</div>`;
+  } else if (l){
+    status= isEnd(l.reason) ? '<span class="badge idle">✓ PARTİ BİTTİ</span>' : '<span class="badge stop">■ DURUYOR</span>';
+    body=`<div class="lab">Duruş süresi</div><div class="big">${fmtDur(now-l.end)}</div>
+          <div class="muted">Durdu: ${fmtDT(l.end)} · ${fmtDur(l.end-l.start)} çalışmanın sonunda</div>
+          <div class="reason ${isEnd(l.reason)?'end':''}"><b>${esc(l.reason||'Neden belirtilmemiş')}</b>${l.note?' — '+esc(l.note):''}</div>`;
+  } else {
+    status='<span class="badge idle">KAYIT YOK</span>';
+    body=`<div class="muted" style="padding:14px 0">Henüz kayıt yok. Bölüm çalışmaya başladığında “Başlat”a bas.</div>`;
+  }
+  const btn = !canWrite ? '' : (o
+    ? `<button class="btn stop" data-act="stop" data-sec="${s.id}">Durdur</button>`
+    : `<button class="btn start" data-act="start" data-sec="${s.id}">Başlat</button>`);
+  return `<div class="card" style="--c:${s.color}">
+    <div class="card-h"><h3>${s.name}</h3>${status}</div>${body}
+    <div class="today">Bugün: <b>${fmtDur(st.run)}</b> çalışma · <b>${fmtDur(st.down)}</b> duruş · <b>${st.stops}</b> duruş kaydı</div>
+    <div class="card-f">${btn}</div></div>`;
+}
+
+function renderGenel(){
+  const events=[];
+  runs.forEach(r=>{
+    events.push({t:r.start, sec:r.section, kind:'start', r});
+    if (r.end!=null) events.push({t:r.end, sec:r.section, kind:'stop', r});
+  });
+  events.sort((a,b)=>b.t-a.t);
+  const feed = events.slice(0,15).map(e=>{
+    const s=SEC[e.sec]; if(!s) return '';
+    const what = e.kind==='start'
+      ? `<span class="tag run">Başladı</span>`
+      : `${isEnd(e.r.reason)?'<span class="tag end">Parti bitti</span>':'<span class="tag r">Durdu</span> '+esc(e.r.reason||'')}${e.r.note?' <span class="muted">— '+esc(e.r.note)+'</span>':''} <span class="muted">(${fmtDur(e.r.end-e.r.start)} çalıştı)</span>`;
+    return `<li><span class="when">${fmtDT(e.t)}</span><span><b style="color:${s.color}">${s.name}</b> ${what}</span></li>`;
+  }).join('');
+  const ow = openWarnings();
+  return `${ow.length?`<div class="row"><h2 style="margin-top:0">⚠ Açık uyarılar <small>${ow.length} adet · vardiya teslim notlarından</small></h2><div class="sp"></div><button class="icon" data-act="tab" data-tab="teslim">Tümünü gör</button></div>
+    <div class="notes" style="margin-bottom:18px">${ow.slice(0,6).map(noteHTML).join('')}</div>`:''}
+  <div class="grid">${SECTIONS.map(cardHTML).join('')}${paketCard()}</div>
+    <h2>Son hareketler</h2>
+    <div class="panel">${feed?`<ul class="feed">${feed}</ul>`:'<div class="empty">Henüz hareket yok.</div>'}</div>`;
+}
+
+function statsHTML(st){
+  return `<div class="stats">
+    <div class="stat"><div class="k">Toplam çalışma</div><div class="v">${fmtDur(st.run)}</div></div>
+    <div class="stat"><div class="k">Toplam duruş</div><div class="v">${fmtDur(st.down)}</div></div>
+    <div class="stat"><div class="k">Duruş sayısı</div><div class="v">${st.stops}</div></div>
+    <div class="stat"><div class="k">Çalışma oranı</div><div class="v">${st.avail==null?'—':'%'+(st.avail*100).toFixed(1).replace('.',',')}</div></div>
+  </div>`;
+}
+function barsHTML(byReason, color){
+  const arr = Object.entries(byReason).sort((a,b)=>b[1].dur-a[1].dur);
+  if (!arr.length) return '<div class="empty">Bu dönemde duruş yok.</div>';
+  const max = Math.max(...arr.map(x=>x[1].dur), 1);
+  return `<div class="bars" style="--c:${color}">${arr.map(([k,v])=>`
+    <div class="bar"><span>${esc(k)}</span><div class="t"><div class="f" style="width:${(v.dur/max*100).toFixed(1)}%"></div></div>
+    <span class="n">${fmtDur(v.dur)} · ${v.count}×</span></div>`).join('')}</div>`;
+}
+
+function renderSection(sec){
+  const s=SEC[sec], [a,b]=getRange(), now=Date.now();
+  const st=stats(sec,a,b);
+  const list=secRuns(sec).filter(r=>overlap(r.start, r.end ?? now, a, b+1)>0 || (r.start>=a && r.start<=b)).reverse();
+  const rows = list.map(r=>{
+    const g=gapAfter(r);
+    return `<tr>
+      <td class="nowrap">${fmtDT(r.start)}${r.startNote?`<div class="muted">${esc(r.startNote)}</div>`:''}</td>
+      <td class="nowrap">${r.end==null?'<span class="tag run">Çalışıyor</span>':fmtDT(r.end)}</td>
+      <td class="num">${fmtDur((r.end ?? now) - r.start)}</td>
+      <td>${r.end==null?'':`<span class="tag ${isEnd(r.reason)?'end':'r'}">${esc(r.reason||'Belirtilmemiş')}</span>`}${r.note?`<div class="muted">${esc(r.note)}</div>`:''}</td>
+      <td class="num">${g?fmtDur(g.dur)+(g.ongoing?' <span class="muted">(sürüyor)</span>':''):''}</td>
+      <td>${esc(r.operator||'')}${r.stopOperator&&r.stopOperator!==r.operator?' / '+esc(r.stopOperator):''}</td>
+      <td class="nowrap">${canWrite?`<button class="icon" data-act="edit" data-id="${r.id}">Düzenle</button><button class="icon" data-act="del" data-id="${r.id}">Sil</button>`:''}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="grid" style="grid-template-columns:minmax(260px,420px)">${cardHTML(s)}</div>
+    <h2>${s.name} özeti <small>${rangeLabel()}</small></h2>
+    ${statsHTML(st)}
+    <h2>Duruş nedenleri <small>süreye göre</small></h2>
+    <div class="panel">${barsHTML(st.byReason, s.color)}</div>
+    <div class="row"><h2>Çalışma kayıtları <small>${list.length} kayıt</small></h2><div class="sp"></div>
+      ${canWrite?`<button class="btn ghost" data-act="add" data-sec="${sec}">+ Geçmiş kayıt ekle</button>`:''}</div>
+    <div class="panel">${rows?`<table><thead><tr>
+      <th>Başlangıç</th><th>Duruş</th><th>Çalışma süresi</th><th>Duruş nedeni</th><th>Duruş süresi</th><th>Operatör</th><th></th>
+      </tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Bu dönemde kayıt yok.</div>'}</div>`;
+}
+
+function renderRapor(){
+  const [a,b]=getRange();
+  const all = SECTIONS.map(s=>({s, st:stats(s.id,a,b)}));
+  const tot = {run:0,down:0,stops:0,byReason:{}};
+  all.forEach(({st})=>{ tot.run+=st.run; tot.down+=st.down; tot.stops+=st.stops;
+    for (const [k,v] of Object.entries(st.byReason)){ tot.byReason[k]=tot.byReason[k]||{dur:0,count:0}; tot.byReason[k].dur+=v.dur; tot.byReason[k].count+=v.count; } });
+  const rows = all.map(({s,st})=>`<tr>
+    <td><b style="color:${s.color}">${s.name}</b></td>
+    <td class="num">${fmtDur(st.run)}</td><td class="num">${fmtDur(st.down)}</td><td class="num">${st.stops}</td>
+    <td class="num">${st.avail==null?'—':'%'+(st.avail*100).toFixed(1).replace('.',',')}</td>
+    <td>${(()=>{const t=Object.entries(st.byReason).sort((x,y)=>y[1].dur-x[1].dur)[0]; return t?esc(t[0])+' <span class="muted">('+fmtDur(t[1].dur)+')</span>':'—';})()}</td></tr>`).join('');
+  return `<h2>Bölüm karşılaştırması <small>${rangeLabel()}</small></h2>
+    <div class="panel"><table><thead><tr><th>Bölüm</th><th>Çalışma</th><th>Duruş</th><th>Duruş sayısı</th><th>Çalışma oranı</th><th>En uzun duruş nedeni</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <h2>Tüm bölümler – duruş nedenleri</h2>
+    <div class="panel">${barsHTML(tot.byReason,'#c92a2a')}</div>
+    ${SECTIONS.map(s=>{ const st=all.find(x=>x.s===s).st; return `<h2 style="color:${s.color}">${s.name} <small>duruş nedenleri</small></h2><div class="panel">${barsHTML(st.byReason,s.color)}</div>`; }).join('')}
+    ${paketRaporHTML()}
+    <div class="row" style="margin-top:22px"><button class="btn dark" data-act="csv">Kayıtları Excel için kopyala</button>
+      <button class="btn ghost" data-act="pcsv">Paketleme tablosunu kopyala</button>
+      <span class="muted">Seçili dönemin kayıtları; Excel'e yapıştırılabilir.</span></div>`;
+}
+
+function renderView(){
+  let html='';
+  if (!dbReady && db) html = '<div class="empty">Kayıtlar yükleniyor…</div>';
+  else if (tab==='genel') html=renderGenel();
+  else if (tab==='rapor') html=renderRapor();
+  else if (tab==='paketleme') html=renderPaket();
+  else if (tab==='teslim') html=renderTeslim();
+  else html=renderSection(tab);
+  $('#view').innerHTML=html;
+  renderTabs();
+}
+function renderAll(){ renderTabs(); renderFilters(); renderView(); }
+function tickClock(){ const d=new Date(); $('#clock').textContent=`${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+
+/* ---------- modals ---------- */
+function closeModal(){ $('#modal').classList.add('hidden'); $('#sheet').innerHTML=''; }
+function showModal(html, onSubmit){
+  $('#sheet').innerHTML=html; $('#modal').classList.remove('hidden');
+  const f=$('#sheet form');
+  if (f) f.onsubmit = async e=>{
+    e.preventDefault();
+    const btn=f.querySelector('[type=submit]'); if(btn) btn.disabled=true;
+    const err = await onSubmit(new FormData(f));
+    if (err){ f.querySelector('.err').textContent=err; if(btn) btn.disabled=false; }
+    else closeModal();
+  };
+  const first=$('#sheet select, #sheet input'); if(first) setTimeout(()=>first.focus(),30);
+}
+function quickTimes(name){
+  return `<div class="quick">${[0,5,15,30,60].map(m=>`<button type="button" data-act="qt" data-name="${name}" data-m="${m}">${m===0?'Şimdi':m+' dk önce'}</button>`).join('')}</div>`;
+}
+function reasonOptions(sel){
+  const list = reasons.includes(sel) || !sel ? reasons : [sel, ...reasons];
+  return `<option value="">— Seçin —</option>` + list.map(r=>`<option ${r===sel?'selected':''}>${esc(r)}</option>`).join('');
+}
+
+async function write(fn){
+  if (!db) return 'Kayıt sistemine bağlanılamadı; bu görünümde kayıt yapılamıyor.';
+  try { await fn(); toast('Kaydedildi'); return null; }
+  catch(e){
+    const code = e && e.code;
+    if (code==='invalid_argument') return 'Kaydedilemedi. Bu sayfaya kayıt yetkin olmayabilir (sayfa sahibinden “Katkıda bulunan” yetkisi iste).';
+    if (code==='quota_exceeded') return 'Veritabanı dolu: eski kayıtlar silinmeden yeni kayıt eklenemiyor.';
+    if (code==='unavailable'){ await new Promise(r=>setTimeout(r,800+Math.random()*800)); try{ await fn(); toast('Kaydedildi'); return null; }catch(e2){} }
+    return 'Kaydedilemedi: ' + ((e&&e.message)||code||'bilinmeyen hata');
+  }
+}
+function newId(t){ return 'r'+t.toString(36)+Math.random().toString(36).slice(2,8); }
+function conflicts(sec, start, end, ignoreId){
+  const now=Date.now();
+  return secRuns(sec).find(r=> r.id!==ignoreId && overlap(start, end ?? now, r.start, r.end ?? now) > 0);
+}
+
+function openStart(sec){
+  const s=SEC[sec], l=lastRun(sec);
+  showModal(`<form>
+    <h3>${s.name} — Başlat</h3>
+    <div class="sub">${l&&l.end?`Son duruş: ${fmtDT(l.end)} (${esc(l.reason||'neden yok')})`:'Çalışma başlangıcını kaydet.'}</div>
+    <div class="f"><label>Başlama saati</label><input type="datetime-local" name="t" value="${toInput(Date.now())}" required>${quickTimes('t')}</div>
+    <div class="f"><label>Operatör</label><input name="op" value="${esc(getOp())}" placeholder="Ad Soyad"></div>
+    <div class="f"><label>Not <span class="muted">(isteğe bağlı)</span></label><input name="note" placeholder="Örn. arıza giderildi, yeni parti başladı"></div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn start">Başlat</button></div>
+  </form>`, async fd=>{
+    const t=fromInput(fd.get('t')); if(!t) return 'Başlama saatini girin.';
+    if (t > Date.now()+5*60000) return 'İleri bir saat girilemez.';
+    if (openRun(sec)) return 'Bu bölüm zaten çalışıyor görünüyor.';
+    const l=lastRun(sec);
+    if (l && l.end!=null && t < l.end) return `Başlama saati son duruştan (${fmtDT(l.end)}) önce olamaz.`;
+    const op=String(fd.get('op')||'').trim(); saveOp(op);
+    return write(()=>db.collection('runs').doc(newId(t)).set({
+      section:sec, start:t, end:null, reason:'', note:'', startNote:String(fd.get('note')||'').trim(),
+      operator:op, stopOperator:'', updatedAt:Date.now()
+    }));
+  });
+}
+
+function openStop(sec){
+  const s=SEC[sec], o=openRun(sec); if(!o) return;
+  showModal(`<form>
+    <h3>${s.name} — Durdur</h3>
+    <div class="sub">${fmtDT(o.start)}'den beri çalışıyor (${fmtDur(Date.now()-o.start)})</div>
+    <div class="f"><label>Durma saati</label><input type="datetime-local" name="t" value="${toInput(Date.now())}" required>${quickTimes('t')}</div>
+    <div class="f"><label>Duruş nedeni</label><select name="reason" required>${reasonOptions('')}</select></div>
+    <div class="f"><label>Açıklama</label><textarea name="note" placeholder="Örn. elevatör rulmanı dağıldı, bakım ekibi çağrıldı"></textarea></div>
+    <div class="f"><label>Operatör</label><input name="op" value="${esc(getOp())}" placeholder="Ad Soyad"></div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn stop">Durdur</button></div>
+  </form>`, async fd=>{
+    const t=fromInput(fd.get('t')); if(!t) return 'Durma saatini girin.';
+    if (t > Date.now()+5*60000) return 'İleri bir saat girilemez.';
+    if (t <= o.start) return `Durma saati başlangıçtan (${fmtDT(o.start)}) sonra olmalı.`;
+    const reason=String(fd.get('reason')||''); if(!reason) return 'Duruş nedenini seçin.';
+    const op=String(fd.get('op')||'').trim(); saveOp(op);
+    return write(()=>db.collection('runs').doc(o.id).update({
+      end:t, reason, note:String(fd.get('note')||'').trim(), stopOperator:op, updatedAt:Date.now()
+    }));
+  });
+}
+
+function openEdit(sec, id){
+  const r = id ? runs.find(x=>x.id===id) : null;
+  if (id && !r) return;
+  sec = r ? r.section : sec;
+  const s=SEC[sec];
+  showModal(`<form>
+    <h3>${s.name} — ${r?'Kaydı düzenle':'Geçmiş kayıt ekle'}</h3>
+    <div class="sub">${r?'Saatleri ve duruş bilgisini düzeltebilirsin.':'Unutulan bir çalışmayı sonradan girmek için.'}</div>
+    <div class="f"><label>Başlama saati</label><input type="datetime-local" name="s" value="${r?toInput(r.start):''}" required></div>
+    <div class="f"><label>Başlangıç notu</label><input name="sn" value="${esc(r?.startNote||'')}"></div>
+    <div class="f"><label>Durma saati</label><input type="datetime-local" name="e" value="${r&&r.end!=null?toInput(r.end):''}">
+      <span class="hint">Boş bırakırsan bölüm hâlâ çalışıyor sayılır.</span></div>
+    <div class="f"><label>Duruş nedeni</label><select name="reason">${reasonOptions(r?.reason||'')}</select></div>
+    <div class="f"><label>Açıklama</label><textarea name="note">${esc(r?.note||'')}</textarea></div>
+    <div class="f"><label>Operatör</label><input name="op" value="${esc(r?r.operator:getOp())}"></div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn dark">Kaydet</button></div>
+  </form>`, async fd=>{
+    const st=fromInput(fd.get('s')), en=fromInput(fd.get('e'));
+    if (!st) return 'Başlama saatini girin.';
+    if (st > Date.now()+5*60000 || (en && en > Date.now()+5*60000)) return 'İleri bir saat girilemez.';
+    if (en!=null && en<=st) return 'Durma saati başlamadan sonra olmalı.';
+    const reason=String(fd.get('reason')||'');
+    if (en!=null && !reason) return 'Duruş nedenini seçin.';
+    if (en==null){ const o=openRun(sec); if(o && o.id!==id) return 'Bu bölümde zaten açık (çalışan) bir kayıt var.'; }
+    const c=conflicts(sec, st, en, id);
+    if (c) return `Bu saatler başka bir kayıtla çakışıyor (${fmtDT(c.start)} – ${c.end==null?'devam ediyor':fmtDT(c.end)}).`;
+    const body={ section:sec, start:st, end:en, reason: en==null?'':reason, note:String(fd.get('note')||'').trim(),
+      startNote:String(fd.get('sn')||'').trim(), operator:String(fd.get('op')||'').trim(),
+      stopOperator: r?.stopOperator||'', updatedAt:Date.now() };
+    return write(()=>db.collection('runs').doc(id||newId(st)).set(body));
+  });
+}
+
+function openDelete(id){
+  const r=runs.find(x=>x.id===id); if(!r) return;
+  showModal(`<form>
+    <h3>Kayıt silinsin mi?</h3>
+    <div class="sub">${SEC[r.section]?.name||''} · ${fmtDT(r.start)} – ${r.end==null?'devam ediyor':fmtDT(r.end)}. Bu işlem geri alınamaz.</div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn danger">Sil</button></div>
+  </form>`, async ()=> write(()=>db.collection('runs').doc(id).delete()));
+}
+
+function openSettings(){
+  showModal(`<form>
+    <h3>Duruş nedenleri</h3>
+    <div class="sub">Her satıra bir neden yaz. Liste tüm bölümler için ortaktır.</div>
+    <div class="f"><textarea name="list" style="min-height:220px">${esc(reasons.join('\n'))}</textarea></div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button>
+      ${canWrite?'<button type="submit" class="btn dark">Kaydet</button>':''}</div>
+  </form>`, async fd=>{
+    const list=[...new Set(String(fd.get('list')||'').split('\n').map(x=>x.trim()).filter(Boolean))];
+    if (!list.length) return 'En az bir neden olmalı.';
+    return write(()=>db.doc('config/settings').set({reasons:list, updatedAt:Date.now()}));
+  });
+}
+
+function buildCSV(){
+  const [a,b]=getRange(), now=Date.now();
+  const head=['Bölüm','Başlangıç','Duruş','Çalışma (saat)','Duruş nedeni','Açıklama','Sonraki duruş süresi (saat)','Operatör','Başlangıç notu'];
+  const rows=runs.filter(r=>overlap(r.start, r.end ?? now, a, b+1)>0).sort((x,y)=>x.start-y.start).map(r=>{
+    const g=gapAfter(r);
+    return [SEC[r.section]?.name||r.section, fmtDT(r.start), r.end==null?'Çalışıyor':fmtDT(r.end), hours((r.end??now)-r.start),
+      r.reason||'', r.note||'', g?hours(g.dur):'', [r.operator,r.stopOperator].filter(Boolean).join(' / '), r.startNote||''];
+  });
+  return [head,...rows].map(row=>row.map(v=>String(v).replace(/[\t\n\r]+/g,' ')).join('\t')).join('\n');
+}
+
+/* ---------- paketleme ---------- */
+function dateStr(ms){ const d=new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function fmtD(ds){ const [y,m,d]=ds.split('-'); return `${d}.${m}.${y}`; }
+const GUN = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+function dayName(ds){ return GUN[new Date(ds+'T12:00').getDay()]; }
+function fmtTon(n){ return (Math.round((+n||0)*100)/100).toLocaleString('tr-TR',{maximumFractionDigits:2}); }
+function fmtInt(n){ return (+n||0).toLocaleString('tr-TR'); }
+function parseNum(v){ v=String(v??'').trim().replace(/\s/g,''); if(!v) return null; if(v.includes(',')) v=v.replace(/\./g,'').replace(',','.'); const n=Number(v); return isFinite(n)?n:NaN; }
+function currentShift(){ const h=new Date().getHours(); if(h>=8 && h<20) return {date:dateStr(Date.now()), shift:'gunduz'}; return {date:dateStr(h<8?Date.now()-DAY:Date.now()), shift:'gece'}; }
+function paketGet(date, shift){ return paket.find(p=>p.date===date && p.shift===shift) || null; }
+function paketInRange(a,b){ return paket.filter(p=>{ const ds=new Date(p.date+'T00:00').getTime(); return ds>=dayStart(a) && ds<b; }); }
+function paketTotals(list){
+  const t={gunduz:{palet:0,ton:0,n:0}, gece:{palet:0,ton:0,n:0}, palet:0, ton:0, days:new Set()};
+  list.forEach(p=>{ const x=t[p.shift]; x.palet+=+p.palet||0; x.ton+=+p.ton||0; x.n++; t.palet+=+p.palet||0; t.ton+=+p.ton||0; t.days.add(p.date); });
+  return t;
+}
+function paketCard(){
+  const today=dateStr(Date.now()), yest=dateStr(Date.now()-DAY);
+  const g=paketGet(today,'gunduz'), n=paketGet(today,'gece'), yn=paketGet(yest,'gece');
+  const cell=(lbl,p,date,shift)=>`<div style="flex:1;background:#f6f8f8;border-radius:8px;padding:8px 10px">
+      <div class="muted">${lbl}</div>
+      ${p?`<div class="big" style="font-size:20px">${fmtTon(p.ton)} t</div><div class="muted">${fmtInt(p.palet)} palet</div>`
+         :`<div class="muted" style="padding:6px 0">Girilmedi</div>`}
+      ${canWrite?`<button class="icon" data-act="paket" data-date="${date}" data-shift="${shift}">${p?'Düzenle':'Gir'}</button>`:''}
+    </div>`;
+  const tot=(+g?.ton||0)+(+n?.ton||0), totP=(+g?.palet||0)+(+n?.palet||0);
+  return `<div class="card" style="--c:${PAKET.color}">
+    <div class="card-h"><h3>Paketleme</h3><span class="badge idle">GÜNLÜK ÜRETİM</span></div>
+    <div class="lab">Bugün (${fmtD(today)})</div>
+    <div style="display:flex;gap:8px">${cell('Gündüz',g,today,'gunduz')}${cell('Gece',n,today,'gece')}</div>
+    <div class="today">Bugün toplam: <b>${fmtTon(tot)} ton</b> · <b>${fmtInt(totP)}</b> palet<br>
+      Dün gece: ${yn?`<b>${fmtTon(yn.ton)} ton</b> · ${fmtInt(yn.palet)} palet`:'<span class="muted">girilmedi</span>'}</div>
+    <div class="card-f">${canWrite?`<button class="btn start" style="background:${PAKET.color}" data-act="paket">Üretim gir</button>`:''}</div>
+  </div>`;
+}
+function renderPaket(){
+  const [a,b]=getRange();
+  const list=paketInRange(a,b), t=paketTotals(list), days=t.days.size;
+  const byDate={}; list.forEach(p=>{ (byDate[p.date]=byDate[p.date]||{})[p.shift]=p; });
+  const dates=Object.keys(byDate).sort().reverse();
+  const c=(p,date,shift)=> p
+    ? `<td class="num">${fmtInt(p.palet)}</td><td class="num">${fmtTon(p.ton)}</td>`
+    : `<td colspan="2">${canWrite?`<button class="icon" data-act="paket" data-date="${date}" data-shift="${shift}">+ gir</button>`:'<span class="muted">—</span>'}</td>`;
+  const act=(p)=> p&&canWrite?`<button class="icon" data-act="paket" data-date="${p.date}" data-shift="${p.shift}">Düzenle</button><button class="icon" data-act="pdel" data-id="${p.id}">Sil</button>`:'';
+  const rows=dates.map(d=>{ const g=byDate[d].gunduz, n=byDate[d].gece;
+    const notes=[g&&g.note?'Gündüz: '+esc(g.note):'', n&&n.note?'Gece: '+esc(n.note):''].filter(Boolean).join('<br>');
+    return `<tr><td class="nowrap"><b>${fmtD(d)}</b> <span class="muted">${dayName(d)}</span></td>
+      ${c(g,d,'gunduz')}${c(n,d,'gece')}
+      <td class="num"><b>${fmtInt((+g?.palet||0)+(+n?.palet||0))}</b></td><td class="num"><b>${fmtTon((+g?.ton||0)+(+n?.ton||0))}</b></td>
+      <td>${notes?`<span class="muted">${notes}</span>`:''}</td>
+      <td class="nowrap">${act(g)}${act(n)?'<br>':''}${act(n)}</td></tr>`; }).join('');
+  const pct=x=> t.ton? '%'+(x/t.ton*100).toFixed(0) : '—';
+  return `<div class="grid" style="grid-template-columns:minmax(260px,420px)">${paketCard()}</div>
+    <h2>Paketleme özeti <small>${rangeLabel()}</small></h2>
+    <div class="stats">
+      <div class="stat"><div class="k">Toplam tonaj</div><div class="v">${fmtTon(t.ton)} t</div></div>
+      <div class="stat"><div class="k">Toplam palet</div><div class="v">${fmtInt(t.palet)}</div></div>
+      <div class="stat"><div class="k">Gündüz vardiyası</div><div class="v">${fmtTon(t.gunduz.ton)} t</div><div class="k">${fmtInt(t.gunduz.palet)} palet · ${pct(t.gunduz.ton)}</div></div>
+      <div class="stat"><div class="k">Gece vardiyası</div><div class="v">${fmtTon(t.gece.ton)} t</div><div class="k">${fmtInt(t.gece.palet)} palet · ${pct(t.gece.ton)}</div></div>
+      <div class="stat"><div class="k">Günlük ortalama</div><div class="v">${days?fmtTon(t.ton/days):'—'} t</div><div class="k">${days} gün kayıtlı</div></div>
+    </div>
+    <div class="row"><h2>Günlük üretim</h2><div class="sp"></div>
+      ${canWrite?`<button class="btn ghost" data-act="paket">+ Üretim gir</button>`:''}</div>
+    <div class="panel">${rows?`<table><thead>
+      <tr><th rowspan="2">Tarih</th><th colspan="2">Gündüz</th><th colspan="2">Gece</th><th colspan="2">Toplam</th><th rowspan="2">Not</th><th rowspan="2"></th></tr>
+      <tr><th>Palet</th><th>Ton</th><th>Palet</th><th>Ton</th><th>Palet</th><th>Ton</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td><b>Toplam</b></td><td class="num">${fmtInt(t.gunduz.palet)}</td><td class="num">${fmtTon(t.gunduz.ton)}</td><td class="num">${fmtInt(t.gece.palet)}</td><td class="num">${fmtTon(t.gece.ton)}</td><td class="num"><b>${fmtInt(t.palet)}</b></td><td class="num"><b>${fmtTon(t.ton)}</b></td><td colspan="2"></td></tr></tfoot>
+      </table>`:'<div class="empty">Bu dönemde paketleme kaydı yok.</div>'}</div>`;
+}
+function paketRaporHTML(){
+  const [a,b]=getRange(); const t=paketTotals(paketInRange(a,b)), days=t.days.size;
+  return `<h2 style="color:${PAKET.color}">Paketleme <small>${rangeLabel()}</small></h2>
+    <div class="panel"><table><thead><tr><th></th><th>Palet</th><th>Ton</th></tr></thead><tbody>
+      <tr><td>Gündüz vardiyası</td><td class="num">${fmtInt(t.gunduz.palet)}</td><td class="num">${fmtTon(t.gunduz.ton)}</td></tr>
+      <tr><td>Gece vardiyası</td><td class="num">${fmtInt(t.gece.palet)}</td><td class="num">${fmtTon(t.gece.ton)}</td></tr>
+      <tr><td><b>Toplam</b></td><td class="num"><b>${fmtInt(t.palet)}</b></td><td class="num"><b>${fmtTon(t.ton)}</b></td></tr>
+      <tr><td class="muted">Günlük ortalama (${days} gün)</td><td class="num">${days?fmtInt(Math.round(t.palet/days)):'—'}</td><td class="num">${days?fmtTon(t.ton/days):'—'}</td></tr>
+    </tbody></table></div>`;
+}
+function buildPaketCSV(){
+  const [a,b]=getRange(); const by={};
+  paketInRange(a,b).forEach(p=>{ (by[p.date]=by[p.date]||{})[p.shift]=p; });
+  const num=v=>v==null?'':String(v).replace('.',',');
+  const head=['Tarih','Gündüz palet','Gündüz ton','Gece palet','Gece ton','Toplam palet','Toplam ton','Not'];
+  const rows=Object.keys(by).sort().map(d=>{ const g=by[d].gunduz, n=by[d].gece;
+    return [fmtD(d), num(g?.palet), num(g?.ton), num(n?.palet), num(n?.ton),
+      num((+g?.palet||0)+(+n?.palet||0)), num(Math.round(((+g?.ton||0)+(+n?.ton||0))*100)/100),
+      [g?.note,n?.note].filter(Boolean).join(' | ')]; });
+  return [head,...rows].map(r=>r.map(v=>String(v??'').replace(/[\t\n\r]+/g,' ')).join('\t')).join('\n');
+}
+function openPaket(date, shift){
+  if (!date || !shift){ const c=currentShift(); date=date||c.date; shift=shift||c.shift; }
+  const ex=paketGet(date,shift);
+  showModal(`<form>
+    <h3>Paketleme — üretim girişi</h3>
+    <div class="sub">Gece vardiyası, başladığı günün tarihine yazılır. Aynı gün ve vardiya ikinci kez girilirse önceki kaydın üzerine yazılır.</div>
+    <div class="f"><label>Tarih</label><input type="date" name="date" value="${date}" required></div>
+    <div class="f"><label>Vardiya</label><select name="shift">${SHIFTS.map(([k,l])=>`<option value="${k}" ${k===shift?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="f"><label>Palet sayısı</label><input name="palet" inputmode="numeric" value="${ex?ex.palet:''}" placeholder="Örn. 24" required></div>
+    <div class="f"><label>Toplam tonaj (ton)</label><input name="ton" inputmode="decimal" value="${ex?String(ex.ton).replace('.',','):''}" placeholder="Örn. 24,5" required></div>
+    <div class="f"><label>Not <span class="muted">(isteğe bağlı)</span></label><input name="note" value="${esc(ex?.note||'')}"></div>
+    <div class="f"><label>Giren</label><input name="op" value="${esc(ex?.operator||getOp())}" placeholder="Ad Soyad"></div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn dark">Kaydet</button></div>
+  </form>`, async fd=>{
+    const d=String(fd.get('date')||''), sh=String(fd.get('shift')||'');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return 'Tarihi girin.';
+    if (new Date(d+'T00:00').getTime() > Date.now()) return 'İleri bir tarih girilemez.';
+    if (sh!=='gunduz' && sh!=='gece') return 'Vardiya seçin.';
+    const palet=parseNum(fd.get('palet')), ton=parseNum(fd.get('ton'));
+    if (palet==null || isNaN(palet) || palet<0 || !Number.isInteger(palet)) return 'Palet sayısı tam sayı olmalı.';
+    if (ton==null || isNaN(ton) || ton<0) return 'Tonajı sayı olarak girin (örn. 24,5).';
+    const op=String(fd.get('op')||'').trim(); saveOp(op);
+    return write(()=>db.collection('paket').doc(`${d}_${sh}`).set({date:d, shift:sh, palet, ton, note:String(fd.get('note')||'').trim(), operator:op, updatedAt:Date.now()}));
+  });
+  // tarih/vardiya değişince mevcut kaydı forma getir
+  const f=$('#sheet form');
+  const load=()=>{ const p=paketGet(f.date.value, f.shift.value);
+    f.palet.value=p?p.palet:''; f.ton.value=p?String(p.ton).replace('.',','):''; f.note.value=p?.note||''; };
+  f.date.onchange=load; f.shift.onchange=load;
+}
+function openPaketDelete(id){
+  const p=paket.find(x=>x.id===id); if(!p) return;
+  showModal(`<form><h3>Paketleme kaydı silinsin mi?</h3>
+    <div class="sub">${fmtD(p.date)} · ${p.shift==='gece'?'Gece':'Gündüz'} vardiyası · ${fmtInt(p.palet)} palet / ${fmtTon(p.ton)} ton</div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn danger">Sil</button></div>
+  </form>`, async()=> write(()=>db.collection('paket').doc(id).delete()));
+}
+
+/* ---------- vardiya teslim ---------- */
+const LEVELS = {bilgi:{l:'Bilgi',c:'#495057',bg:'#f1f3f5'}, uyari:{l:'Uyarı – sorun çıkabilir',c:'#a05a00',bg:'#fff4e0'}, acil:{l:'Acil',c:'#c92a2a',bg:'#fdecec'}};
+const NOTE_SECS = [['genel','Genel / Tüm fabrika'], ...SECTIONS.map(s=>[s.id,s.name]), ['paketleme','Paketleme']];
+const noteSecName = id => (NOTE_SECS.find(x=>x[0]===id)||[,'Genel'])[1];
+const noteSecColor = id => SEC[id]?.color || (id==='paketleme'?PAKET.color:'#495057');
+function openWarnings(){ return notes.filter(n=>!n.resolved && n.level!=='bilgi').sort((a,b)=>(a.level==='acil'?0:1)-(b.level==='acil'?0:1) || b.createdAt-a.createdAt); }
+function noteHTML(n){
+  const L = LEVELS[n.level]||LEVELS.bilgi;
+  const status = n.level==='bilgi' ? '' : (n.resolved
+    ? `<div class="res">✓ Çözüldü ${n.resolvedAt?fmtDT(n.resolvedAt):''}${n.resolvedBy?' · '+esc(n.resolvedBy):''}${n.resolution?`<div>${esc(n.resolution)}</div>`:''}</div>`
+    : '');
+  const ack = n.ackBy ? `<span class="muted">· Teslim alan: <b>${esc(n.ackBy)}</b> (${fmtDT(n.ackAt)})</span>` : '';
+  const btns = !canWrite ? '' : [
+    !n.ackBy ? `<button class="icon" data-act="nack" data-id="${n.id}">Okudum / teslim aldım</button>` : '',
+    n.level!=='bilgi' && !n.resolved ? `<button class="icon" data-act="nres" data-id="${n.id}">Çözüldü</button>` : '',
+    n.level!=='bilgi' && n.resolved ? `<button class="icon" data-act="nreopen" data-id="${n.id}">Tekrar aç</button>` : '',
+    `<button class="icon" data-act="nedit" data-id="${n.id}">Düzenle</button>`,
+    `<button class="icon" data-act="ndel" data-id="${n.id}">Sil</button>`].join('');
+  return `<div class="note ${n.resolved?'done':''}" style="--lc:${L.c};--lb:${L.bg}">
+    <div class="nh"><span class="lv">${L.l}</span><span class="tag" style="color:${noteSecColor(n.section)}">${esc(noteSecName(n.section))}</span>
+      <span class="muted">${fmtD(n.date)} ${n.shift==='gece'?'Gece':'Gündüz'} vardiyası · ${esc(n.author||'—')} · ${fmtT(n.createdAt)}</span></div>
+    <div class="nt">${esc(n.text).replace(/\n/g,'<br>')}</div>${status}
+    <div class="nf">${ack}<span class="sp"></span>${btns}</div></div>`;
+}
+function renderTeslim(){
+  const [a,b]=getRange(); const ow=openWarnings();
+  let list = notes.filter(n=>{ const ds=new Date(n.date+'T00:00').getTime(); return ds>=dayStart(a) && ds<b; });
+  if (noteFilter==='acik') list = list.filter(n=>n.level!=='bilgi' && !n.resolved);
+  if (noteFilter==='cozuldu') list = list.filter(n=>n.resolved);
+  const groups={}; list.forEach(n=>{ const k=n.date+'_'+(n.shift==='gece'?'1':'0'); (groups[k]=groups[k]||[]).push(n); });
+  const keys=Object.keys(groups).sort().reverse();
+  const body = keys.map(k=>{ const [d,sh]=k.split('_'); const arr=groups[k].sort((x,y)=>y.createdAt-x.createdAt);
+    return `<h2>${fmtD(d)} ${dayName(d)} · ${sh==='1'?'Gece':'Gündüz'} vardiyası <small>${arr.length} not</small></h2><div class="notes">${arr.map(noteHTML).join('')}</div>`; }).join('');
+  return `<div class="row"><div class="muted" style="max-width:640px">Vardiya değişiminde devredilecek bilgileri ve sorun çıkma ihtimali olan durumları buraya yaz. Uyarılar “Çözüldü” işaretlenene kadar Genel Bakış’ta görünür.</div>
+      <div class="sp"></div>${canWrite?`<button class="btn dark" data-act="nnew">+ Vardiya notu yaz</button>`:''}</div>
+    ${ow.length && noteFilter!=='cozuldu' ? `<h2>⚠ Açık uyarılar <small>${ow.length} adet · tüm tarihler</small></h2><div class="notes">${ow.map(noteHTML).join('')}</div>` : ''}
+    ${body || `<div class="panel" style="margin-top:16px"><div class="empty">Bu dönemde ${noteFilter==='acik'?'açık uyarı':noteFilter==='cozuldu'?'çözülen uyarı':'vardiya notu'} yok.</div></div>`}`;
+}
+function openNote(id){
+  const n = id ? notes.find(x=>x.id===id) : null; if (id && !n) return;
+  const c = currentShift();
+  const date = n?n.date:c.date, shift = n?n.shift:c.shift, level = n?n.level:'bilgi', sec = n?n.section:'genel';
+  showModal(`<form>
+    <h3>${n?'Vardiya notunu düzenle':'Vardiya notu'}</h3>
+    <div class="sub">Devredilecek bilgi ya da sorun çıkabilecek bir durum.</div>
+    <div class="row" style="gap:8px;align-items:flex-start">
+      <div class="f" style="flex:1"><label>Tarih</label><input type="date" name="date" value="${date}" required></div>
+      <div class="f" style="flex:1"><label>Vardiya</label><select name="shift">${SHIFTS.map(([k,l])=>`<option value="${k}" ${k===shift?'selected':''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <div class="f"><label>Bölüm</label><select name="section">${NOTE_SECS.map(([k,l])=>`<option value="${k}" ${k===sec?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="f"><label>Önem</label><select name="level">${Object.entries(LEVELS).map(([k,v])=>`<option value="${k}" ${k===level?'selected':''}>${v.l}</option>`).join('')}</select>
+      <span class="hint">“Uyarı” ve “Acil” notlar çözülene kadar açık kalır.</span></div>
+    <div class="f"><label>Not</label><textarea name="text" required placeholder="Örn. Pres 2 kalıbında ses var, gece takip edilmeli. Kurutma tamburu sıcaklığı dalgalanıyor.">${esc(n?.text||'')}</textarea></div>
+    <div class="f"><label>Yazan</label><input name="op" value="${esc(n?n.author:getOp())}" placeholder="Ad Soyad"></div>
+    <div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn dark">Kaydet</button></div>
+  </form>`, async fd=>{
+    const d=String(fd.get('date')||''), sh=String(fd.get('shift')||''), lv=String(fd.get('level')||''), se=String(fd.get('section')||'genel');
+    const text=String(fd.get('text')||'').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return 'Tarihi girin.';
+    if (!LEVELS[lv]) return 'Önem seçin.';
+    if (!text) return 'Notu yazın.';
+    const op=String(fd.get('op')||'').trim(); saveOp(op);
+    if (n) return write(()=>db.collection('notlar').doc(n.id).update({date:d, shift:sh, level:lv, section:se, text, author:op, updatedAt:Date.now()}));
+    const now=Date.now();
+    return write(()=>db.collection('notlar').doc(newId(now)).set({date:d, shift:sh, level:lv, section:se, text, author:op,
+      createdAt:now, updatedAt:now, resolved:false, resolvedAt:null, resolvedBy:'', resolution:'', ackBy:'', ackAt:null}));
+  });
+}
+function openAck(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  showModal(`<form><h3>Teslim aldım</h3><div class="sub">${esc(n.text).slice(0,140)}</div>
+    <div class="f"><label>Teslim alan</label><input name="op" value="${esc(getOp())}" placeholder="Ad Soyad" required></div>
+    <div class="err"></div><div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn dark">Onayla</button></div></form>`,
+  async fd=>{ const op=String(fd.get('op')||'').trim(); if(!op) return 'Adını yaz.'; saveOp(op);
+    return write(()=>db.collection('notlar').doc(id).update({ackBy:op, ackAt:Date.now()})); });
+}
+function openResolve(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  showModal(`<form><h3>Uyarı çözüldü</h3><div class="sub">${esc(n.text).slice(0,160)}</div>
+    <div class="f"><label>Ne yapıldı?</label><textarea name="res" placeholder="Örn. Rulman değiştirildi, sorun giderildi."></textarea></div>
+    <div class="f"><label>Çözen</label><input name="op" value="${esc(getOp())}" placeholder="Ad Soyad"></div>
+    <div class="err"></div><div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn start" style="flex:0">Çözüldü</button></div></form>`,
+  async fd=>{ const op=String(fd.get('op')||'').trim(); saveOp(op);
+    return write(()=>db.collection('notlar').doc(id).update({resolved:true, resolvedAt:Date.now(), resolvedBy:op, resolution:String(fd.get('res')||'').trim()})); });
+}
+function openNoteDelete(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  showModal(`<form><h3>Not silinsin mi?</h3><div class="sub">${esc(n.text).slice(0,160)}</div><div class="err"></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="close">Vazgeç</button><button type="submit" class="btn danger">Sil</button></div></form>`,
+  async()=> write(()=>db.collection('notlar').doc(id).delete()));
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', async e=>{
+  const el=e.target.closest('[data-act]'); if(!el) return;
+  const act=el.dataset.act;
+  if (act==='tab'){ tab=el.dataset.tab; try{ history.replaceState(null,'','#'+tab); }catch(_){ location.hash=tab; } renderAll(); window.scrollTo(0,0); }
+  else if (act==='range'){ range.kind=el.dataset.k; renderFilters(); renderView(); }
+  else if (act==='start') openStart(el.dataset.sec);
+  else if (act==='stop') openStop(el.dataset.sec);
+  else if (act==='add') openEdit(el.dataset.sec, null);
+  else if (act==='edit') openEdit(null, el.dataset.id);
+  else if (act==='del') openDelete(el.dataset.id);
+  else if (act==='settings') openSettings();
+  else if (act==='nnew') openNote(null);
+  else if (act==='nedit') openNote(el.dataset.id);
+  else if (act==='nack') openAck(el.dataset.id);
+  else if (act==='nres') openResolve(el.dataset.id);
+  else if (act==='nreopen'){ const id=el.dataset.id; const err=await write(()=>db.collection('notlar').doc(id).update({resolved:false, resolvedAt:null})); if(err) toast(err); }
+  else if (act==='ndel') openNoteDelete(el.dataset.id);
+  else if (act==='nf'){ noteFilter=el.dataset.k; renderFilters(); renderView(); }
+  else if (act==='paket') openPaket(el.dataset.date||'', el.dataset.shift||'');
+  else if (act==='pdel') openPaketDelete(el.dataset.id);
+  else if (act==='pcsv'){ const txt=buildPaketCSV(); try{ await navigator.clipboard.writeText(txt); toast('Kopyalandı — Excel’e yapıştır'); }catch(_){ showCopy(txt); } }
+  else if (act==='close') closeModal();
+  else if (act==='qt'){ const inp=$(`#sheet [name="${el.dataset.name}"]`); if(inp) inp.value=toInput(Date.now()-(+el.dataset.m)*60000); }
+  else if (act==='csv'){
+    const txt=buildCSV();
+    try { await navigator.clipboard.writeText(txt); toast('Kopyalandı — Excel’de boş bir hücreye yapıştır'); }
+    catch(_){ showCopy(txt); }
+  }
+});
+function showCopy(txt){
+      showModal(`<form><h3>Kayıtlar</h3><div class="sub">Metni seçip kopyala (Ctrl+A, Ctrl+C), sonra Excel’e yapıştır.</div>
+        <div class="f"><textarea style="min-height:260px;font-family:monospace;font-size:12px" readonly>${esc(txt)}</textarea></div>
+        <div class="err"></div><div class="actions"><button type="button" class="btn dark" data-act="close">Kapat</button></div></form>`, async()=>null);
+}
+$('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+window.addEventListener('hashchange', ()=>{ const h=location.hash.slice(1); if(validTab(h) && h!==tab){ tab=h; renderAll(); } });
+
+function setConn(cls, text){ const c=$('#conn'); c.className=cls; c.textContent=text; }
+function banner(html){ const b=$('#banner'); if(html){ b.innerHTML=html; b.classList.add('show'); } else b.classList.remove('show'); }
+
+/* ---------- data ---------- */
+async function init(){
+  tickClock(); setInterval(tickClock, 15000);
+  setInterval(()=>{ if($('#modal').classList.contains('hidden')) renderView(); }, 30000);
+  renderAll();
+  if (!window.claude || typeof window.claude.use!=='function'){
+    setConn('bad','Çevrimdışı'); dbReady=true; canWrite=false;
+    banner('Kayıt sistemine ulaşılamıyor. Sayfayı claude.ai’de oturum açmış olarak aç.'); renderAll(); return;
+  }
+  try { userCap = await window.claude.use('user'); } catch(_){ userCap=null; }
+  try { db = await window.claude.use('db'); } catch(_){ db=null; }
+  if (!db){
+    setConn('bad','Çevrimdışı'); dbReady=true; canWrite=false;
+    banner('Kayıt sistemine ulaşılamıyor. Sayfayı claude.ai’de oturum açmış olarak aç.'); renderAll(); return;
+  }
+  try { if (userCap && typeof userCap.can==='function'){ const c = await userCap.can('data.write'); if (c===false) canWrite=false; } } catch(_){}
+  if (!canWrite) banner('Bu sayfayı sadece görüntüleyebilirsin. Kayıt girmek için sayfa sahibinden <b>Katkıda bulunan</b> yetkisi iste.');
+
+  const timer=setTimeout(()=>{ setConn('wait','Bağlantı yavaş'); if(!dbReady){ dbReady=true; renderView(); banner('Kayıtlara henüz ulaşılamadı; gösterilenler güncel olmayabilir.'); } }, 10000);
+  db.collection('runs').orderBy('start','desc').limit(1000).onSnapshot(snap=>{
+    runs = snap.docs.map(d=>{ const x=d.data()||{}; return {id:d.id, ...x}; })
+                    .filter(r=>SEC[r.section] && typeof r.start==='number');
+    if (!snap.metadata.fromCache){ clearTimeout(timer); setConn('ok','Canlı'); if(canWrite) banner(''); }
+    dbReady=true; renderView();
+  }, err=>{
+    clearTimeout(timer); dbReady=true; setConn('bad','Bağlantı kesildi');
+    banner(err && err.code==='revoked' ? 'Bu sayfaya erişim sona erdi.' : 'Kayıtlar yüklenemedi. Sayfayı yenilemeyi dene.');
+    renderView();
+  });
+  db.collection('notlar').orderBy('createdAt','desc').limit(1000).onSnapshot(snap=>{
+    notes = snap.docs.map(d=>({id:d.id, ...(d.data()||{})})).filter(n=>typeof n.date==='string' && typeof n.text==='string');
+    renderView();
+  }, ()=>{});
+  db.collection('paket').orderBy('date','desc').limit(1000).onSnapshot(snap=>{
+    paket = snap.docs.map(d=>({id:d.id, ...(d.data()||{})}))
+      .filter(p=>typeof p.date==='string' && (p.shift==='gunduz'||p.shift==='gece'));
+    renderView();
+  }, ()=>{});
+  db.doc('config/settings').onSnapshot(s=>{
+    const d = s.exists ? s.data() : null;
+    reasons = (d && Array.isArray(d.reasons) && d.reasons.length) ? d.reasons.map(String) : DEFAULT_REASONS.slice();
+  }, ()=>{});
+}
+init();
+</script>
+</body>
+</html>
